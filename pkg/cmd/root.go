@@ -41,7 +41,7 @@ func Run() error {
 	}
 
 	// Create SSH tunnel
-	tunnel := sshtunnel.New(host, port, "root")
+	tunnel := sshtunnel.New(host, port)
 
 	// Start the tunnel
 	if err := tunnel.Start(); err != nil {
