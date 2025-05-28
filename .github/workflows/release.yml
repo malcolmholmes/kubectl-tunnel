@@ -7,8 +7,29 @@ on:
 
 
 jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
   build:
-    name: Build and Release
+    name: Build ${{ matrix.os }}
+    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -43,25 +64,12 @@ jobs:
           go build -ldflags="-s -w" -o dist/$BINARY_NAME ./cmd/kubectl-tunnel
           chmod +x dist/$BINARY_NAME
 
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref }}
-          name: Release ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-
       - name: Upload Release Assets
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./dist/kubectl-tunnel-${{ matrix.goos }}${{ matrix.suffix }}
           asset_name: kubectl-tunnel-${{ matrix.goos }}
           asset_content_type: application/octet-stream
